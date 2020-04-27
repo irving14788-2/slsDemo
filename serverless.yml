@@ -1,0 +1,80 @@
+
+service: seleccion
+
+custom:
+# Project config
+  parametro: local
+  entorno:
+    DESA: DESARROLLO
+  regionAbrev: UE1
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  timeout: 30
+  versionFunctions: false
+  stage: DESA
+  region: us-east-1 
+  stackName: ${self:custom.regionAbrev}RIMAC${self:provider.stage}SELECCION001
+  iamRoleStatements: # permissions for all of your functions can be set here
+    - Effect: Allow
+      Action: 
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem 
+        - lambda:InvokeFunction
+        - lambda:InvokeAsync
+      Resource: 'arn:aws:dynamodb:us-east-1:*:*'
+
+functions:
+  saveStarWars:
+    handler: src/saveStarWars/Controller.handler
+    name: ${self:custom.regionAbrev}COM${self:provider.stage}LMB001
+    description: function to traslate and save startwars response.
+    tags:
+      NAME: ${self:custom.regionAbrev}COM${self:provider.stage}LMB001
+    timeout: 30
+    environment:
+      TABLA_DDB_WARS: ${self:custom.regionAbrev}DBWARS
+    events:
+      - http:
+          path: starWars
+          method: post
+          resp: json
+          cors: true
+  getStarWars:
+    handler: src/getStarWars/Controller.handler
+    name: ${self:custom.regionAbrev}COM${self:provider.stage}LMB002
+    description: function to get info.
+    tags:
+      NAME: ${self:custom.regionAbrev}COM${self:provider.stage}LMB002
+    timeout: 30
+    environment:
+      TABLA_DDB_WARS: ${self:custom.regionAbrev}DBWARS
+    events:
+      - http:
+          path: starWars/{id}
+          method: get   
+          resp: json 
+          cors: true
+
+
+resources:
+  Resources:
+    starWarsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.regionAbrev}DBWARS
+        AttributeDefinitions:
+          - AttributeName: "Id"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "Id"
+            KeyType: "HASH"
+        ProvisionedThroughput: 
+          ReadCapacityUnits: "5"
+          WriteCapacityUnits: "5"
